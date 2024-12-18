@@ -109,6 +109,16 @@ class TranscriptionInfo:
     vad_options: VadOptions
 
 
+def find_numeral_symbol_tokens(tokenizer: Tokenizer) -> List[int]:
+    numeral_symbol_tokens = []
+    for i in range(tokenizer.eot):
+        token = tokenizer.decode([i]).removeprefix(" ")
+        has_numeral_symbol = any(c in "0123456789%$£" for c in token)
+        if has_numeral_symbol:
+            numeral_symbol_tokens.append(i)
+    return numeral_symbol_tokens
+
+
 class BatchedInferencePipeline:
     def __init__(
         self,
@@ -476,6 +486,13 @@ class BatchedInferencePipeline:
         features = (
             np.stack([pad_or_trim(feature) for feature in features]) if features else []
         )
+
+        numeral_symbol_tokens = find_numeral_symbol_tokens(tokenizer)
+        non_speech_tokens = list(tokenizer.non_speech_tokens)
+        new_suppressed_tokens = list(
+            set(numeral_symbol_tokens + non_speech_tokens + suppress_tokens)
+        )
+        suppress_tokens = new_suppressed_tokens
 
         options = TranscriptionOptions(
             beam_size=beam_size,
